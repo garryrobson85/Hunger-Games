@@ -3,7 +3,21 @@
 
 // ===== PORTRAITS =====
 function getTributePortrait(t, size=48){
-  if(t.customImage) return `<img src="${esc(t.customImage)}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;border:2px solid ${esc(t.color)}">`;
+  if(t.customImage){
+    return `<img src="${esc(t.customImage)}" style="width:${size}px;height:${size}px;object-fit:cover;border-radius:50%;border:2px solid ${esc(t.color)};flex-shrink:0">`;
+  }
+  // Use SVG portrait generator if available (portraits.js loaded)
+  if(size>=60&&typeof getPortrait==='function'){
+    const svg=getPortrait(t);
+    const scaledW=Math.round(size*0.83);
+    const scaledH=size;
+    return `<div style="width:${size}px;height:${size}px;border-radius:50%;overflow:hidden;flex-shrink:0;border:2px solid rgba(255,255,255,0.2)">
+      <div style="margin-top:-${Math.round(size*0.1)}px;margin-left:-${Math.round((scaledW-size)/2)}px">
+        ${svg.replace('width="120" height="145"',`width="${scaledW}" height="${scaledH}"`).replace('width:120px','width:'+scaledW+'px').replace('height:145px','height:'+scaledH+'px')}
+      </div>
+    </div>`;
+  }
+  // Fallback: initials circle
   const initials=t.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   return `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${esc(t.color)};display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',cursive;font-size:${Math.floor(size*0.38)}px;color:#fff;border:2px solid rgba(255,255,255,0.3);flex-shrink:0">${esc(initials)}</div>`;
 }
@@ -15,12 +29,11 @@ function updateGameSidebar(){
   const el=id=>document.getElementById(id);
   if(el('gs-day-num'))   el('gs-day-num').textContent=G.day;
   if(el('gs-alive-count'))  el('gs-alive-count').textContent=alive.length+' alive';
-  // Only show accurate fallen count after events are revealed (stage 1+)
-  const deathsVisible = G.stageIndex>=1 || G.stageIndex===99;
-  const pendingDeaths = G.currentDayData?.deaths?.length||0;
-  const displayFallen = deathsVisible ? fallen.length : fallen.length - pendingDeaths;
-  if(el('gs-fallen-count')) el('gs-fallen-count').textContent=
-    (deathsVisible?fallen.length:Math.max(0,fallen.length-pendingDeaths))+' fallen'+(deathsVisible?'':' (pending)');
+  // Only reveal today's deaths in sidebar after the summary screen (stage 2)
+  // Before that, show the pre-day fallen count so deaths aren't spoiled
+  const deathsRevealed = G.stageIndex>=2 || G.stageIndex===99;
+  const displayFallen = deathsRevealed ? fallen.length : (G._dayStartFallen??fallen.length);
+  if(el('gs-fallen-count')) el('gs-fallen-count').textContent=displayFallen+' fallen';
   const pct=Math.round(fallen.length/G.cast.length*100);
   if(el('gs-progress-bar')) el('gs-progress-bar').style.width=pct+'%';
   if(el('gs-progress-txt')) el('gs-progress-txt').textContent=`${fallen.length}/${G.cast.length} fallen`;
@@ -240,7 +253,7 @@ function buildArenaEventsSection(day){
   const typeColors={combat:'rgba(232,69,10,0.12)',survival:'rgba(56,189,248,0.08)',hazard:'rgba(168,85,247,0.10)',feast:'rgba(251,191,36,0.10)',sponsor:'rgba(74,222,128,0.08)'};
   const typeIcons={combat:'⚔️',survival:'🌿',hazard:'💀',feast:'🎒',sponsor:'🪙'};
 
-  day.events.forEach(({event,deaths,killers,rolls})=>{
+  const _day=day; day.events.forEach(({event,deaths,killers,rolls})=>{ const day=_day;
     html+=`<div class="event-card anim-in" style="background:${typeColors[event.type]||'rgba(255,255,255,0.04)'}">
       <div class="event-card-type">${typeIcons[event.type]||'🏹'} ${esc(event.type.toUpperCase())}</div>
       <div class="event-card-title">${esc(event.name)}</div>
@@ -253,14 +266,19 @@ function buildArenaEventsSection(day){
         const killer=killerId?G.cast.find(t=>t.id===killerId):null;
         const msgPool=DEATH_MSGS[event.type==='combat'||event.type==='feast'?'combat':event.type==='survival'?'survival':'hazard']||DEATH_MSGS.combat;
         const msg=pick(msgPool).replace('{name}',d.name.split(' ')[0]);
+        const encounterText=day._encounterNarration?.[d.id]||'';
+        const commentText=day._deathCommentary?.[d.id]||'';
         html+=`<div class="death-row">
           <div class="cannon-icon">💥</div>
           ${getTributePortrait(d,42)}
           <div class="death-info">
             <div class="death-name">${esc(d.name)}</div>
             <div class="death-district">${esc(d.districtName)} · ${esc(d.archetype)}</div>
-            <div class="death-msg">${esc(msg)}</div>
+            ${encounterText
+              ?`<div class="encounter-narration">${esc(encounterText)}</div>`
+              :`<div class="death-msg">${esc(msg)}</div>`}
             ${killer?`<div class="death-killer">⚔️ ${esc(killer.name.split(' ')[0])}</div>`:''}
+            ${commentText?`<div class="death-commentary">"${esc(commentText)}"</div>`:''}
           </div>
         </div>`;
       });
@@ -271,6 +289,27 @@ function buildArenaEventsSection(day){
     html+=`</div>`;
   });
 
+  // Survivor near-miss narrations (AI generated)
+  if(day._encounterNarration){
+    const survivorKeys=Object.keys(day._encounterNarration).filter(k=>k.startsWith('survive_'));
+    if(survivorKeys.length){
+      html+=`<div class="stage-block"><div class="stage-label">⚡ Close Calls</div>`;
+      survivorKeys.forEach(k=>{
+        const tid=k.replace('survive_','');
+        const t=G.cast.find(c=>c.id===tid);
+        const text=day._encounterNarration[k];
+        if(!t||!text) return;
+        html+=`<div class="near-miss-card">
+          ${getTributePortrait(t,36)}
+          <div class="near-miss-info">
+            <div style="font-size:13px;font-weight:700">${esc(t.name.split(' ')[0])}</div>
+            <div class="near-miss-text">${esc(text)}</div>
+          </div>
+        </div>`;
+      });
+      html+=`</div>`;
+    }
+  }
   if(day.sponsorGift){
     const{recipient,gift}=day.sponsorGift;
     html+=`<div class="event-card anim-in" style="background:rgba(74,222,128,0.06);border-color:rgba(74,222,128,0.2)">

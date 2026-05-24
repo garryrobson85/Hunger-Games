@@ -1,5 +1,5 @@
 // Hunger Games Simulator — ai.js
-// Gemini API integration with HG-specific prompts
+// Gemini API with dramatic encounter narration
 
 const GEMINI_KEY_STORE='hgsim_gemini_key';
 function showGeminiHelp(){ openModal('modal-gemini-help'); }
@@ -22,7 +22,7 @@ async function testGeminiKey(){
       if(res.status===401||res.status===403){notify(`❌ Key invalid: ${(err?.error?.message||'').slice(0,60)}`);return;}
     }catch(e){}
   }
-  notify('❌ Key test failed — check console');
+  notify('❌ Key test failed');
 }
 function saveGeminiKey(val){ try{val=String(val||'').trim();if(val)localStorage.setItem(GEMINI_KEY_STORE,val);else localStorage.removeItem(GEMINI_KEY_STORE);}catch(e){} }
 function getGeminiKey(){
@@ -43,10 +43,10 @@ async function callGemini(prompt){
   for(const model of models){
     try{
       const ctrl=new AbortController();
-      const timer=setTimeout(()=>ctrl.abort(),22000);
+      const timer=setTimeout(()=>ctrl.abort(),25000);
       const res=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,{
         method:'POST',headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.85,maxOutputTokens:1200,thinkingConfig:{thinkingBudget:0}}}),
+        body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:0.9,maxOutputTokens:1800,thinkingConfig:{thinkingBudget:0}}}),
         signal:ctrl.signal,
       });
       clearTimeout(timer);
@@ -60,99 +60,124 @@ async function callGemini(prompt){
   return null;
 }
 
-// ===== ARENA DAY PROMPT =====
+// ===== BUILD PROMPT =====
 function buildArenaDayPrompt(day){
   const alive=getActive();
   const deaths=day.deaths||[];
+  const survivors=alive; // everyone still alive after today
   const events=day.events||[];
   const allies=G.alliances.filter(al=>al.members.length>=2);
+  const arenaName=G.settings.theme||'the arena';
 
-  const eventLines=events.map(({event,deaths:d})=>
-    `${event.name} (${event.type}): ${d.length?d.map(t=>t.name).join(', ')+' died':'no deaths'}`
-  ).join('\n');
-
-  const allianceLines=allies.map(al=>{
-    const names=al.members.map(id=>G.cast.find(t=>t.id===id)?.name).filter(Boolean);
-    return names.join(' + ');
-  }).join(' | ')||'None';
-
+  // Build per-death kill context
   const deathLines=deaths.map(d=>{
-    const killerName=day.killers?.[d.id]?G.cast.find(t=>t.id===day.killers[d.id])?.name:'arena';
-    return `${d.name} (${d.archetype}, ${d.districtName}) — killed by ${killerName}`;
+    const killerId=day.killers?.[d.id];
+    const killer=killerId?G.cast.find(t=>t.id===killerId):null;
+    const killerDesc=killer?`killed by ${killer.name} (${killer.archetype}, ${killer.districtName})`:'killed by the arena/environment';
+    const wasAllied=killer&&d.allianceIds?.some(id=>killer.allianceIds?.includes(id));
+    return `${d.name} | ${d.districtName} | ${d.archetype} | ${killerDesc}${wasAllied?' | BETRAYAL — they were allied':''} | personality: ${d.personality}`;
   }).join('\n')||'No deaths today';
 
-  return `You are writing narration and dialogue for a Hunger Games simulator.
-Season: "${G.settings.name||'The Hunger Games'}" — Arena: ${G.settings.theme||'undisclosed location'}
-Day: ${day.day} — Tributes alive: ${alive.length}
+  // Close survivors context (2-3 interesting ones)
+  const notableSurvivors=survivors.filter(t=>t.kills>0||t.allianceIds.length>0).slice(0,4)
+    .map(t=>`${t.name.split(' ')[0]} (${t.archetype}${t.kills?`, ${t.kills} kills`:''}${t.allianceIds.length?', allied':''})`).join(', ');
 
-== STRICT FACT SHEET (reference ONLY these facts) ==
-Alive tributes: ${alive.map(t=>`${t.name} (${t.districtName}, ${t.archetype})`).join(', ')}
-Events today: 
-${eventLines}
-Deaths today:
+  const eventLines=events.map(({event,deaths:d})=>
+    `${event.name}: ${d.length?d.map(t=>t.name.split(' ')[0]).join(', ')+' died':'no deaths'}`
+  ).join('\n')||'No events';
+
+  const allianceLines=allies.map(al=>{
+    const names=al.members.map(id=>G.cast.find(t=>t.id===id)?.name.split(' ')[0]).filter(Boolean);
+    return `[${names.join(' + ')}]`;
+  }).join(', ')||'None';
+
+  return `You write for a Hunger Games simulator. Capitol announcer voice: theatrical, complicit, slightly sinister.
+Season: "${G.settings.name||'The Hunger Games'}" — Arena: ${arenaName} — Day ${day.day}
+${alive.length} tributes alive. ${deaths.length} cannon shot${deaths.length!==1?'s':''} today.
+
+== FACTS (use ONLY these) ==
+Today's event(s): ${eventLines}
+Deaths and how they happened:
 ${deathLines}
+Notable survivors: ${notableSurvivors||'none flagged'}
 Active alliances: ${allianceLines}
-${day.sponsorGift?`Sponsor gift: ${day.sponsorGift.gift.name} → ${day.sponsorGift.recipient.name}`:'No sponsor gifts today.'}
+${day.sponsorGift?`Sponsor gift sent: ${day.sponsorGift.gift.name} → ${day.sponsorGift.recipient.name.split(' ')[0]}`:''}
+
+== WHAT TO WRITE ==
+
+1. openingNarration — 2 sentences. Capitol tone setting the day. Reference arena, tension, tributes by name or district.
+
+2. interactions — BEFORE today's events. 1-2 sentences each. Must NOT reference who died today.
+   Pairs: ${(day.interactions||[]).map(i=>`${i.a.name.split(' ')[0]} (${i.a.archetype}) + ${i.b.name.split(' ')[0]} (${i.b.archetype})`).join(' | ')||'none'}
+
+3. encounterNarration — For EACH death and EACH notable survival, write a dramatic 2-3 sentence encounter description.
+   - Deaths: describe exactly HOW they died in this event — the final moments, the fatal mistake, or the kill.
+   - Survivals (2-3 tributes who had close calls): describe how they barely escaped — the near miss, the split-second decision.
+   - Be specific: name the killer, describe the weapon/method if combat, the hazard if environmental.
+   - Match archetype: Careers die fighting back, Underdogs die trying, Tributes die scared, Strategists die outmanoeuvred.
+   - Claudius narrates in past tense from Capitol broadcast perspective.
+
+4. deathCommentary — One sharp Capitol line per death. Callous but not cruel. Specific to that tribute.
 
 == HARD RULES ==
-1. NEVER reveal who will die in camp interactions or the opening narration — only the events section covers deaths.
-2. Interactions are recorded BEFORE the arena events. They must not reference today's deaths.
-3. Only reference tributes in the "Alive tributes" list above.
-4. Do NOT invent events not listed above.
-5. Claudius Templesmith is theatrical, Capitol-biased, slightly sinister — not neutral.
-6. Tribute voices: Careers are cold and calculated. Underdogs are defiant. Tributes are scared but surviving.
+- interactions happen BEFORE events — NEVER reference today's deaths in them
+- Only reference tributes listed above
+- Never invent events or kills not in the facts
+- encounterNarration MUST reference the actual killer or cause listed above
 
-== WRITING RULES ==
-- Narration: 2-3 sentences, theatrical Capitol voice
-- Interactions: 1-2 sentences, tense, specific to these two tributes
-- Death commentary: 1 sentence, Claudius style — not sentimental, slightly callous Capitol tone
-- No generic filler. Every line references actual names, districts, events from the fact sheet.
-
-Write ONLY a JSON object, no markdown, no backticks:
+Write ONLY valid JSON, no markdown, no backticks:
 {
-  "openingNarration": "2-3 sentence Capitol announcement opening Day ${day.day}. Reference the arena, living tributes by name or district, and the tension of survival.",
-  "interactions": [${(day.interactions||[]).map(i=>`{"playerIds":["${i.a.id}","${i.b.id}"],"text":"1-2 sentence interaction between ${i.a.name.split(' ')[0]} and ${i.b.name.split(' ')[0]} recorded before today's events"}`).join(',')}],
-  "deathCommentary": {${deaths.map(d=>`"${d.id}":"Claudius one-liner on ${d.name.split(' ')[0]}'s death — specific, slightly callous Capitol tone"`).join(',')}}
+  "openingNarration": "...",
+  "interactions": [
+    ${(day.interactions||[]).map(i=>`{"playerIds":["${i.a.id}","${i.b.id}"],"text":"..."}`).join(',\n    ')}
+  ],
+  "encounterNarration": {
+    ${deaths.map(d=>`"${d.id}": "2-3 sentence dramatic description of how ${d.name.split(' ')[0]} died"`).join(',\n    ')}${deaths.length&&survivors.slice(0,2).length?',':''}
+    ${survivors.filter(t=>t.kills>0||seededRandom()<0.3).slice(0,2).map(t=>`"survive_${t.id}": "2-3 sentence near-miss description for ${t.name.split(' ')[0]}"`).join(',\n    ')}
+  },
+  "deathCommentary": {
+    ${deaths.map(d=>`"${d.id}": "One sharp Claudius line on ${d.name.split(' ')[0]}'s death"`).join(',\n    ')}
+  }
 }
 
-Alive tribute IDs for reference: ${alive.map(t=>t.id+':'+t.name.split(' ')[0]).join(', ')}`;
+Tribute IDs: ${[...deaths,...survivors.slice(0,3)].map(t=>t.id+':'+t.name.split(' ')[0]).join(', ')}`;
 }
 
-// ===== GENERATE AI CONTENT FOR A DAY =====
+// ===== GENERATE AI CONTENT =====
 async function generateAIArenaDay(day){
+  // Show loading screen
   const c=document.getElementById('ep-view-container');
-  if(c){
-    const ev=document.querySelector('.ep-view');
-    if(ev) ev.scrollTop=0;
-    window.scrollTo(0,0);
-    c.innerHTML=`<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:40px 20px;gap:16px;min-height:200px">
-      <div style="font-size:36px;animation:pulse-fire 1.5s ease-in-out infinite">⚔️</div>
-      <div style="font-family:'Bebas Neue',cursive;font-size:20px;letter-spacing:0.05em;color:var(--fire)">The Capitol is watching…</div>
-      <div id="ai-progress-msg" style="font-size:13px;color:var(--text2)">Generating Day ${day.day}…</div>
-    </div>`;
+  if(c&&G.stageIndex===0){
+    // Only show loading on stage 0 (not if already viewing events)
   }
 
   const prompt=buildArenaDayPrompt(day);
   const raw=await callGemini(prompt);
-
-  if(!raw){ renderStage(0); return; }
+  if(!raw) return;
 
   try{
     const text=raw.replace(/```json|```/g,'').trim();
     const parsed=JSON.parse(text);
 
     if(parsed.openingNarration) day._aiOpeningNarration=parsed.openingNarration;
+
     if(parsed.interactions){
       parsed.interactions.forEach(i=>{
         const match=day.interactions?.find(d=>d.a.id===i.playerIds?.[0]&&d.b.id===i.playerIds?.[1]);
         if(match) match._aiText=i.text;
       });
     }
-    if(parsed.deathCommentary){
-      day._deathCommentary=parsed.deathCommentary;
-    }
-    saveGame();
-  }catch(e){ console.error('AI parse failed:',e); }
 
-  renderStage(0);
+    if(parsed.encounterNarration) day._encounterNarration=parsed.encounterNarration;
+    if(parsed.deathCommentary) day._deathCommentary=parsed.deathCommentary;
+
+    saveGame();
+
+    // Re-render current stage with new AI content
+    if(G.stageIndex===1||G.stageIndex===0){
+      renderStage(G.stageIndex);
+    }
+  }catch(e){
+    console.error('AI parse failed:',e,raw?.slice(0,200));
+  }
 }

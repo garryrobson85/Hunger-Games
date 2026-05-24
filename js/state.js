@@ -192,3 +192,126 @@ function notify(msg,type=''){
   el.classList.add('show');
   setTimeout(()=>el.classList.remove('show'),3200);
 }
+
+// ===== TRIBUTE EDITOR =====
+const PALETTE=['#E53935','#8E24AA','#1E88E5','#00ACC1','#43A047',
+  '#FB8C00','#6D4C41','#546E7A','#F06292','#26A69A',
+  '#EF5350','#AB47BC','#42A5F5','#26C6DA','#66BB6A',
+  '#FFA726','#8D6E63','#78909C','#EC407A','#29B6F6'];
+
+function renderTributeEditor(){
+  const container=document.getElementById('cast-list-container');
+  if(!container) return;
+  container.innerHTML='';
+
+  DISTRICTS.forEach((d,di)=>{
+    const tributes=G.cast.filter(t=>t.district===di);
+    if(!tributes.length) return;
+
+    const section=document.createElement('div');
+    section.style.cssText='margin-bottom:20px';
+    section.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+      <div style="width:12px;height:12px;border-radius:50%;background:${esc(d.color)}"></div>
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em">${esc(d.name)}</div>
+      <div style="font-size:10px;color:var(--text3)">${esc(d.industry)}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    ${tributes.map(t=>buildTributeEditorCard(t)).join('')}
+    </div>`;
+    container.appendChild(section);
+  });
+}
+
+function buildTributeEditorCard(t){
+  const portrait=typeof getPortrait==='function'?getPortrait(t):`<div style="width:76px;height:92px;background:${esc(t.color)};border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff">${esc(t.name.slice(0,2).toUpperCase())}</div>`;
+  const portraitSmall=portrait.replace('width="120" height="145"','width="76" height="92"').replace('width:120px','width:76px').replace('height:145px','height:92px');
+  return `<div class="tribute-editor-card" id="tec-${esc(t.id)}">
+    <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:10px">
+      <div style="position:relative;flex-shrink:0">
+        <div class="cpu-img-wrap" onclick="triggerImageUpload('${esc(t.id)}')" title="Upload photo" style="width:76px;height:92px;border-radius:8px;overflow:hidden;cursor:pointer;position:relative">
+          ${portraitSmall}
+          <div class="cpu-overlay">📷</div>
+        </div>
+        <input type="file" id="img-input-${esc(t.id)}" accept="image/*" style="display:none" onchange="handleImageUpload('${esc(t.id)}',this)">
+        ${t.customImage?`<button onclick="clearTributeImage('${esc(t.id)}')" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--elim);color:#fff;border:none;font-size:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">✕</button>`:''}
+      </div>
+      <div style="flex:1;min-width:0">
+        <input class="cast-name-edit" value="${esc(t.name)}" oninput="updateTribute('${esc(t.id)}','name',this.value)" placeholder="Tribute name" style="width:100%;margin-bottom:6px">
+        <select class="form-select" style="font-size:11px;padding:5px 8px;margin-bottom:4px;width:100%" onchange="updateTribute('${esc(t.id)}','archetype',this.value)">
+          ${ARCHETYPES.map(a=>`<option${t.archetype===a?' selected':''}>${esc(a)}</option>`).join('')}
+        </select>
+        <select class="form-select" style="font-size:11px;padding:5px 8px;width:100%" onchange="updateTribute('${esc(t.id)}','personality',this.value)">
+          ${PERSONALITIES.map(p=>`<option${t.personality===p?' selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      ${['physical','mental','social','endurance'].map((stat,si)=>{
+        const colors=['var(--fire)','var(--ice)','#a855f7','var(--win)'];
+        return `<div style="display:flex;align-items:center;gap:6px">
+          <span style="font-size:9px;color:var(--text3);width:24px;text-transform:uppercase">${stat.slice(0,3)}</span>
+          <div style="flex:1;height:4px;background:var(--border);border-radius:2px">
+            <div id="sf-${esc(t.id)}-${stat}" style="height:4px;background:${colors[si]};border-radius:2px;width:${t[stat]}%"></div>
+          </div>
+          <input type="range" min="30" max="98" value="${t[stat]}" style="width:60px;height:3px;accent-color:${colors[si]}"
+            oninput="updateTribute('${esc(t.id)}','${stat}',+this.value);document.getElementById('sf-${esc(t.id)}-${stat}').style.width=this.value+'%';document.getElementById('sn-${esc(t.id)}-${stat}').textContent=this.value">
+          <span id="sn-${esc(t.id)}-${stat}" style="font-size:10px;width:22px;text-align:right;font-family:'DM Mono',monospace">${t[stat]}</span>
+        </div>`;
+      }).join('')}
+    </div>
+    <div style="margin-top:8px">
+      <button onclick="pickTributeColor('${esc(t.id)}')" style="font-size:10px;background:${esc(t.color)};color:#fff;border:none;border-radius:6px;padding:4px 10px;cursor:pointer">🎨 Colour</button>
+      <button onclick="rerollTribute('${esc(t.id)}')" style="font-size:10px;background:var(--panel2);color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:4px 10px;cursor:pointer;margin-left:4px">⚡ Reroll</button>
+    </div>
+  </div>`;
+}
+
+function updateTribute(id,field,val){
+  const t=G.cast.find(x=>x.id===id); if(!t) return;
+  if(field==='name') val=String(val).replace(/[<>"'`]/g,'').slice(0,40);
+  t[field]=val; t._portrait=null; t._portraitKey=null;
+  if(field==='archetype'||field==='personality'){
+    // Re-render just this card's portrait
+    const card=document.getElementById('tec-'+id);
+    if(card&&typeof getPortrait==='function'){
+      const wrap=card.querySelector('.cpu-img-wrap');
+      if(wrap) wrap.innerHTML=getPortrait(t).replace('width="120" height="145"','width="76" height="92"').replace('width:120px','width:76px').replace('height:145px','height:92px')+'<div class="cpu-overlay">📷</div>';
+    }
+  }
+}
+
+function rerollTribute(id){
+  const t=G.cast.find(x=>x.id===id); if(!t) return;
+  const fresh=makeContestant(t.district);
+  t.name=fresh.name; t.archetype=fresh.archetype; t.personality=fresh.personality;
+  t.physical=fresh.physical; t.mental=fresh.mental; t.social=fresh.social; t.endurance=fresh.endurance;
+  t._portrait=null; t._portraitKey=null;
+  renderTributeEditor();
+  notify(`${t.name} rerolled ⚡`);
+}
+
+function clearTributeImage(id){
+  const t=G.cast.find(x=>x.id===id); if(!t) return;
+  t.customImage=null; t._portrait=null; t._portraitKey=null;
+  renderTributeEditor();
+}
+
+// Colour picker
+let _colorTarget=null;
+function pickTributeColor(id){
+  _colorTarget=id;
+  const t=G.cast.find(x=>x.id===id);
+  const grid=document.getElementById('color-grid-container');
+  if(grid) grid.innerHTML=PALETTE.map(col=>`<div class="color-swatch${t&&t.color===col?' selected':''}" style="background:${col};width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid ${t&&t.color===col?'white':'transparent'}" onclick="applyTributeColor('${col}')"></div>`).join('');
+  openModal('modal-color-pick');
+}
+function applyTributeColor(col){
+  if(!_colorTarget) return;
+  const t=G.cast.find(x=>x.id===_colorTarget); if(!t) return;
+  t.color=col; t._portrait=null; t._portraitKey=null;
+  closeModal('modal-color-pick');
+  renderTributeEditor();
+}
+
+// Override renderTributeGrid to use editor
+function renderTributeGrid(){ renderTributeEditor(); }

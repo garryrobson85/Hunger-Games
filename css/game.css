@@ -156,3 +156,23 @@
 
 /* ── DICE ROLL DISPLAY ── */
 .dice-roll{font-size:10px;color:var(--text3);margin-top:3px;font-family:'DM Mono',monospace;background:rgba(0,0,0,0.3);border-radius:4px;padding:2px 6px;display:inline-block;}
+
+/* ── ENCOUNTER NARRATION ── */
+.encounter-narration{font-size:13px;line-height:1.65;color:var(--text2);margin-top:6px;font-style:italic;border-left:2px solid rgba(220,38,38,0.4);padding-left:8px;}
+.death-commentary{font-size:11px;color:var(--text3);margin-top:5px;font-family:'DM Mono',monospace;}
+.near-miss-card{display:flex;gap:10px;align-items:flex-start;background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.15);border-radius:10px;padding:12px;margin-bottom:8px;}
+.near-miss-info{flex:1;}
+.near-miss-text{font-size:13px;color:var(--text2);line-height:1.6;margin-top:4px;font-style:italic;}
+
+/* ── TRIBUTE EDITOR ── */
+.tribute-editor-card{background:var(--panel2);border:1.5px solid var(--border);border-radius:var(--radius-lg);padding:12px;}
+.tribute-editor-card:hover{border-color:var(--border2);}
+.cast-name-edit{width:100%;background:var(--panel);border:1.5px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-family:inherit;font-size:13px;font-weight:600;margin-bottom:4px;}
+.cast-name-edit:focus{outline:none;border-color:var(--fire);}
+.cpu-img-wrap{position:relative;cursor:pointer;border-radius:8px;overflow:hidden;}
+.cpu-img-wrap:hover .cpu-overlay{opacity:1;}
+.cpu-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s;font-size:18px;color:#fff;}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:transform 0.1s,border-color 0.1s;}
+.color-swatch:hover{transform:scale(1.15);}
+.color-swatch.selected{border-color:white;}
+#color-grid-container{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:4px;}

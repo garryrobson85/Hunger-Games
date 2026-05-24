@@ -257,8 +257,10 @@ function gamemakerProtectTribute(tributeId){
 
 // ===== RESOLVE CHOSEN EVENT =====
 function resolveChosenEvent(event){
-  const alive=getActive();
   const day=G.currentDayData;
+  if(!day||day._resolved) return; // prevent double-fire
+  day._resolved=true;
+  const alive=getActive();
   const res=resolveArenaEvent(event,alive);
 
   // Mark deaths — but don't reveal in sidebar yet
@@ -294,6 +296,8 @@ function computeAndStartDay(){
     if(alive.length<=1){declareVictor(alive[0]);return;}
 
     G.arenaIntensity=Math.min(5,Math.floor((G.cast.length-alive.length)/4));
+    // Seed pre-arranged alliances on day 1 before anything else
+    if(G.day===1&&typeof seedInitialAlliances==='function') seedInitialAlliances();
     maybeFormAlliances();
 
     const eventOptions=pickEventOptions(alive,G.day);
@@ -304,17 +308,19 @@ function computeAndStartDay(){
       _eventOptions:eventOptions,
       _chosenEvent:null,
       _victorPending:null,
+      _resolved:false,
       events:[],deaths:[],killers:{},sponsorGift:null,
       interactions,
       alive:alive.map(t=>t.id),
       _openingNarration:buildArenaOpening(G.day),
     };
 
+    // Track how many were fallen BEFORE this day starts — sidebar uses this until stage 2
+    G._dayStartFallen=G.cast.filter(c=>c.eliminated).length;
+
     G.currentDayData=dayData;
     G.episodeLog.push(dayData);
 
-    // Day 1: show cornucopia as the only option — user must click to trigger bloodbath
-    // No auto-resolve — player sees stage 0 first
     saveGame();
     G.stageIndex=0;
     updateGameSidebar();
@@ -331,6 +337,7 @@ function computeAndStartDay(){
 function nextDay(){
   G.day++;
   G.cast.forEach(t=>t.immunity=false);
+  G._dayStartFallen=G.cast.filter(c=>c.eliminated).length;
   saveGame();
   const ev=document.querySelector('.ep-view');
   if(ev) ev.scrollTop=0;
@@ -346,27 +353,66 @@ function declareVictor(victor){
 }
 
 // ===== ALLIANCE HELPERS =====
+function seedInitialAlliances(){
+  // Called once at game start
+  if(!G.settings.alliances) return;
+  const all=G.cast;
+
+  // 1. Career pack — Districts 1, 2, 4 Careers/Brutes form pre-arranged alliance
+  const careerDistricts=[0,1,3]; // indices for D1, D2, D4
+  const careers=all.filter(t=>
+    careerDistricts.includes(t.district)&&
+    ['The Career','The Brute'].includes(t.archetype)
+  );
+  if(careers.length>=2){
+    const al={id:uid(),members:careers.map(t=>t.id),strength:rng(72,88),day:0,type:'career'};
+    G.alliances.push(al);
+    careers.forEach(t=>t.allianceIds.push(al.id));
+  }
+
+  // 2. District partner bonds — high relationship, not automatic alliance
+  const districts=[...new Set(all.map(t=>t.district))];
+  districts.forEach(di=>{
+    const pair=all.filter(t=>t.district===di);
+    if(pair.length<2) return;
+    const [a,b]=pair;
+    // Boost relationship between district partners
+    if(!G.relationships[a.id]) G.relationships[a.id]={};
+    if(!G.relationships[b.id]) G.relationships[b.id]={};
+    const bond=rng(60,82);
+    G.relationships[a.id][b.id]=bond;
+    G.relationships[b.id][a.id]=bond;
+    // Allies unless already in Career pack or if archetype is loner
+    const loners=['The Tribute'];
+    const aInCareer=a.allianceIds.length>0;
+    const bInCareer=b.allianceIds.length>0;
+    if(!aInCareer&&!bInCareer&&!loners.includes(a.archetype)&&!loners.includes(b.archetype)&&seededRandom()<0.7){
+      const al={id:uid(),members:[a.id,b.id],strength:rng(55,75),day:0,type:'district'};
+      G.alliances.push(al);
+      a.allianceIds.push(al.id);
+      b.allianceIds.push(al.id);
+    }
+  });
+}
+
 function maybeFormAlliances(){
   if(!G.settings.alliances) return;
   const active=getActive();
   if(active.length<3) return;
   active.forEach(t=>{
-    if(t.allianceIds.length>0||seededRandom()>0.28) return;
+    if(t.allianceIds.length>0||seededRandom()>0.22) return;
+    // Only form new alliances with tributes you have decent relationship with
     const candidates=active.filter(o=>
-      o.id!==t.id&&o.allianceIds.length===0&&(G.relationships[t.id]?.[o.id]||40)>=50
+      o.id!==t.id&&
+      o.allianceIds.length===0&&
+      (G.relationships[t.id]?.[o.id]||40)>=55
     );
     if(!candidates.length) return;
     const partner=pick(candidates);
-    const al={id:uid(),members:[t.id,partner.id],strength:rng(50,80),day:G.day};
+    const al={id:uid(),members:[t.id,partner.id],strength:rng(45,72),day:G.day};
     G.alliances.push(al);
     t.allianceIds.push(al.id);
     partner.allianceIds.push(al.id);
-    if(['The Career','The Brute'].includes(t.archetype)){
-      active.filter(o=>!o.eliminated&&o.allianceIds.length===0&&
-        o.id!==t.id&&o.id!==partner.id&&
-        ['The Career','The Brute'].includes(o.archetype)).slice(0,2)
-        .forEach(e=>{al.members.push(e.id);e.allianceIds.push(al.id);});
-    }
   });
 }
 

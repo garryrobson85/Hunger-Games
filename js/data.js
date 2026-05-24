@@ -68,9 +68,9 @@ const LAST_NAMES = [
 // deadlyness: how likely (0-1) to kill vs just wound/scatter
 const ARENA_EVENTS = [
   // ── COMBAT ──────────────────────────────────────────────────────
-  {id:'career_hunt',    name:'Career Pack Hunt',       type:'combat',   stat:'physical',   deadly:0.85, minAlive:8,  desc:'The Career pack moves through the arena, hunting methodically.'},
+  {id:'career_hunt',    name:'Career Pack Hunt',       type:'combat',   stat:'physical',   deadly:0.70, minAlive:8,  desc:'The Career pack moves through the arena, hunting methodically.'},
   {id:'ambush',         name:'Nighttime Ambush',       type:'combat',   stat:'physical',   deadly:0.75, minAlive:6,  desc:'A tribute strikes from the shadows while others sleep.'},
-  {id:'duel',           name:'Cornucopia Standoff',    type:'combat',   stat:'physical',   deadly:0.9,  minAlive:4,  desc:'Two tributes face each other at the Cornucopia. Only one walks away.'},
+  {id:'duel',           name:'Cornucopia Standoff',    type:'combat',   stat:'physical',   deadly:0.80, minAlive:4,  desc:'Two tributes face each other at the Cornucopia. Only one walks away.'},
   {id:'alliance_hunt',  name:'Alliance Sweep',         type:'combat',   stat:'social',     deadly:0.7,  minAlive:8,  desc:'An alliance coordinates to eliminate a specific target.'},
   {id:'betrayal_kill',  name:'Ally Betrayal',          type:'combat',   stat:'mental',     deadly:0.9,  minAlive:5,  desc:'Someone turns on a trusted partner when the numbers get small.'},
 
@@ -96,7 +96,7 @@ const ARENA_EVENTS = [
 // Cornucopia — Day 1 only, always deadly
 const CORNUCOPIA_EVENT = {
   id:'cornucopia', name:'The Cornucopia Bloodbath', type:'combat', stat:'physical',
-  deadly:0.95, minAlive:24,
+  deadly:0.75, minAlive:24,
   desc:'The tributes launch off their pedestals. Weapons, supplies, survival gear — all of it piled at the golden horn. The fastest, strongest, most ruthless survive the opening minutes.',
 };
 
