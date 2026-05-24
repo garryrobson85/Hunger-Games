@@ -1,7 +1,7 @@
 /* Hunger Games Simulator — game.css — responsive desktop + mobile */
 
 /* ── HEADER ── */
-.app-header{position:sticky;top:0;z-index:100;background:var(--deep);border-bottom:1px solid var(--border);height:var(--header-h);display:flex;align-items:center;padding:0 14px;gap:10px;}
+.app-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--deep);border-bottom:1px solid var(--border);height:var(--header-h);display:flex;align-items:center;padding:0 14px;gap:10px;}
 .logo{display:flex;align-items:center;gap:8px;min-width:0;}
 .logo-mark{width:30px;height:30px;background:linear-gradient(135deg,#D4AF37,#92400e);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
 .logo-text{font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:0.08em;line-height:1;white-space:nowrap;}
@@ -21,7 +21,7 @@
 
 /* ── SCREENS ── */
 .screen{display:none;flex-direction:column;}
-.screen.active{display:flex;flex-direction:column;min-height:calc(100vh - var(--header-h));}
+.screen.active{display:flex;flex-direction:column;min-height:100vh;padding-top:var(--header-h);}
 
 /* ── SETUP ── */
 .setup-sidebar::-webkit-scrollbar{display:none;}
@@ -40,8 +40,9 @@
 .status-bar{background:rgba(212,175,55,0.08);border-bottom:1px solid var(--border);padding:5px 14px;display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .status-dot{width:6px;height:6px;border-radius:50%;background:var(--fire);animation:pulse-fire 1.5s ease-in-out infinite;flex-shrink:0;}
 .status-ticker{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.1em;text-transform:uppercase;color:var(--fire);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.game-layout{display:flex;flex:1;overflow:hidden;}
-.game-sidebar{width:200px;min-width:0;background:var(--deep);border-right:1px solid var(--border);overflow-y:auto;padding:12px;flex-shrink:0;height:calc(100vh - var(--header-h) - 30px);position:sticky;top:calc(var(--header-h) + 30px);}
+.game-layout{display:block;flex:1;}
+.game-sidebar{width:200px;min-width:0;background:var(--deep);border-right:1px solid var(--border);overflow-y:auto;padding:12px;flex-shrink:0;height:calc(100vh - var(--header-h));position:fixed;top:var(--header-h);bottom:0;}
+.game-main{margin-left:200px;}
 .game-main{flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0;}
 .ep-view{flex:1;overflow-y:auto;padding-bottom:80px;}
 .gs-section{margin-bottom:14px;}
@@ -172,6 +173,7 @@
 
   /* Setup: force column layout on mobile */
   #screen-setup.active{flex-direction:column!important;}
+  .setup-content{margin-left:0!important;}
   .setup-sidebar{flex-direction:row!important;width:100%!important;height:auto!important;position:static!important;border-right:none!important;border-bottom:1px solid var(--border)!important;}
   .setup-nav-item{border-left:none!important;border-bottom:3px solid transparent!important;white-space:nowrap!important;padding:10px 12px!important;}
   .setup-nav-item.active{border-left-color:transparent!important;border-bottom-color:var(--fire)!important;}
@@ -180,7 +182,8 @@
   .setup-panel-title{font-size:22px;}
 
   /* Game: hide sidebar, full width content */
-  .game-sidebar{display:none;}
+  .game-sidebar{display:none!important;}
+  .game-main{margin-left:0!important;}
   .game-layout{overflow:visible;}
   .game-main{overflow:visible;}
   .ep-view{overflow:visible;padding-bottom:100px;}
@@ -238,7 +241,8 @@
 /* ── DESKTOP ONLY: setup sidebar as column ── */
 @media(min-width:641px){
   #screen-setup.active{flex-direction:row!important;}
-  .setup-sidebar{width:190px;height:calc(100vh - var(--header-h));flex-direction:column;position:sticky;top:var(--header-h);border-right:1px solid var(--border);border-bottom:none;overflow-y:auto;overflow-x:hidden;}
+  .setup-sidebar{width:190px;height:calc(100vh - var(--header-h));flex-direction:column;position:fixed;top:var(--header-h);bottom:0;border-right:1px solid var(--border);border-bottom:none;overflow-y:auto;overflow-x:hidden;}
+  .setup-content{margin-left:190px;}
   .setup-nav-item{border-left:3px solid transparent;border-bottom:none;white-space:normal;}
   .setup-nav-item.active{border-left-color:var(--fire);border-bottom:none;}
 }
