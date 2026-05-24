@@ -14,8 +14,8 @@
     .app-header,.drawer,.drawer-backdrop,[id^="ns-"]{position:fixed!important}
     canvas#ns-particles{position:fixed;top:0;left:0;pointer-events:none;z-index:200}
   </style>
-  <link rel="stylesheet" href="css/base.css?v=1779646635">
-  <link rel="stylesheet" href="css/game.css?v=1779646635">
+  <link rel="stylesheet" href="css/base.css?v=1779646917">
+  <link rel="stylesheet" href="css/game.css?v=1779646917">
 </head>
 <body>
 
@@ -87,7 +87,7 @@
       <div class="setup-nav-item active" onclick="setupNav('general')"><span class="nav-icon">⚙️</span><span>General</span></div>
       <div class="setup-nav-item" onclick="setupNav('tributes')"><span class="nav-icon">🏹</span><span>Tributes</span><span class="nav-count" id="cast-nav-count">24</span></div>
       <div class="setup-nav-item" onclick="setupNav('rules')"><span class="nav-icon">📋</span><span>Rules</span></div>
-      <div style="padding:14px;margin-top:auto;border-top:1px solid var(--border)">
+      <div style="padding:14px;border-top:1px solid var(--border);margin-top:auto">
         <button class="btn btn-fire" style="width:100%;justify-content:center" data-action="startGames">⚔️ Let the Games Begin</button>
         <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;margin-top:8px" data-action="goHome">← Back</button>
       </div>
@@ -173,6 +173,11 @@
       </div>
 
     </div>
+  </div>
+  <!-- Mobile-only sticky start button below setup content -->
+  <div class="setup-mobile-actions">
+    <button class="btn btn-fire" style="flex:1;justify-content:center" data-action="startGames">⚔️ Let the Games Begin</button>
+    <button class="btn btn-ghost btn-sm" data-action="goHome">← Back</button>
   </div>
 
   <!-- GAME -->
@@ -287,14 +292,14 @@
 </div>
 <div id="notification" class="notification"></div>
 
-<script src="js/portraits.js?v=1779646635"></script>
-<script src="js/data.js?v=1779646635"></script>
-<script src="js/state.js?v=1779646635"></script>
-<script src="js/engine.js?v=1779646635"></script>
-<script src="js/ui.js?v=1779646635"></script>
-<script src="js/ai.js?v=1779646635"></script>
-<script src="js/sound.js?v=1779646635"></script>
-<script src="js/main.js?v=1779646635"></script>
+<script src="js/portraits.js?v=1779646917"></script>
+<script src="js/data.js?v=1779646917"></script>
+<script src="js/state.js?v=1779646917"></script>
+<script src="js/engine.js?v=1779646917"></script>
+<script src="js/ui.js?v=1779646917"></script>
+<script src="js/ai.js?v=1779646917"></script>
+<script src="js/sound.js?v=1779646917"></script>
+<script src="js/main.js?v=1779646917"></script>
 <script>
 // Setup panel nav
 function setupNav(panel){
