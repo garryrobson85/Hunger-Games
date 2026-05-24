@@ -75,4 +75,4 @@ a:hover{text-decoration:underline;}
 @media(prefers-reduced-motion:reduce){*{animation-duration:0.01ms!important;transition-duration:0.01ms!important;}}
 
 /* ── APP CONTAINER ── */
-#app{display:flex;flex-direction:column;min-height:100vh;}
+#app{display:flex;flex-direction:column;min-height:100vh;padding-top:var(--header-h);box-sizing:border-box;}
