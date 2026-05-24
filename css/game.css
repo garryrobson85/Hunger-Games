@@ -170,8 +170,12 @@
   #screen-home{padding:32px 16px 32px;}
   .home-btns .btn{min-width:0;width:100%;max-width:280px;}
 
-  /* Setup: sidebar is horizontal tabs on mobile - always */
-  .setup-content{padding:14px 16px;max-width:100%;}
+  /* Setup: force column layout on mobile */
+  #screen-setup.active{flex-direction:column!important;}
+  .setup-sidebar{flex-direction:row!important;width:100%!important;height:auto!important;position:static!important;border-right:none!important;border-bottom:1px solid var(--border)!important;}
+  .setup-nav-item{border-left:none!important;border-bottom:3px solid transparent!important;white-space:nowrap!important;padding:10px 12px!important;}
+  .setup-nav-item.active{border-left-color:transparent!important;border-bottom-color:var(--fire)!important;}
+  .setup-content{padding:14px 16px;max-width:100%;overflow-y:auto;}
   .form-row{grid-template-columns:1fr;}
   .setup-panel-title{font-size:22px;}
 
