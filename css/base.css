@@ -40,9 +40,9 @@ a:hover{text-decoration:underline;}
 .gap-8{gap:8px;}
 .gap-10{gap:10px;}
 
-.form-input{width:100%;background:var(--panel2);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;transition:border-color 0.15s;}
+.form-input{width:100%;max-width:100%;box-sizing:border-box;background:var(--panel2);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;transition:border-color 0.15s;}
 .form-input:focus{outline:none;border-color:var(--fire);}
-.form-select{width:100%;background:var(--panel2);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;}
+.form-select{width:100%;max-width:100%;box-sizing:border-box;background:var(--panel2);border:1.5px solid var(--border);border-radius:var(--radius);padding:10px 12px;color:var(--text);font-family:inherit;font-size:14px;}
 .form-select:focus{outline:none;border-color:var(--fire);}
 .form-label{font-family:'Space Mono',monospace;font-size:9px;letter-spacing:0.14em;color:var(--text3);text-transform:uppercase;margin-bottom:6px;display:block;}
 .form-group{margin-bottom:16px;}
@@ -73,3 +73,6 @@ a:hover{text-decoration:underline;}
 .anim-in{animation:anim-in 0.3s ease forwards;}
 
 @media(prefers-reduced-motion:reduce){*{animation-duration:0.01ms!important;transition-duration:0.01ms!important;}}
+
+/* ── APP CONTAINER ── */
+#app{display:flex;flex-direction:column;min-height:100vh;}
