@@ -172,16 +172,12 @@ function buildGamemakerChooser(day){
 
   options.forEach(event=>{
     const alive=getActive();
-    const deathEst=event.id==='cornucopia'?getBloodbathDeaths():
-      Math.round(event.deadly*Math.min(getMaxDeaths(),Math.floor(alive.length*0.35)));
     html+=`<div class="gm-option-card" onclick="applyGamemakerChoice('${esc(event.id)}')">
       <div class="gm-option-type">${typeIcons[event.type]||'🏹'} ${esc(event.type.toUpperCase())}</div>
       <div class="gm-option-name">${esc(event.name)}</div>
       <div class="gm-option-desc">${esc(event.desc)}</div>
       <div class="gm-option-meta">
-        <span style="color:var(--elim)">~${deathEst} death${deathEst!==1?'s':''}</span>
-        <span style="color:var(--text3)">Stat: ${esc(event.stat)}</span>
-        <span style="color:var(--fire2)">Deadly: ${Math.round(event.deadly*100)}%</span>
+        <span style="color:var(--text3)">Primarily ${esc(event.stat)}-based</span>
       </div>
     </div>`;
   });
@@ -538,38 +534,6 @@ function buildVictorSpeech(v){
   return base+killLine;
 }
 
-// ===== TRIBUTE GRID (SETUP) =====
-function renderTributeGrid(){
-  const container=document.getElementById('cast-list-container');
-  if(!container) return;
-  container.innerHTML='';
-  DISTRICTS.forEach((d,di)=>{
-    const tributes=G.cast.filter(t=>t.district===di);
-    if(!tributes.length) return;
-    const section=document.createElement('div');
-    section.style.cssText='margin-bottom:16px';
-    section.innerHTML=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-      <div style="width:10px;height:10px;border-radius:50%;background:${esc(d.color)}"></div>
-      <div style="font-size:11px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:0.05em">${esc(d.name)}</div>
-      <div style="font-size:10px;color:var(--text3)">${esc(d.industry)}</div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-    ${tributes.map(t=>`<div class="tribute-card" style="border-color:${esc(t.color)}40">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
-        ${getTributePortrait(t,40)}
-        <div>
-          <div style="font-size:13px;font-weight:600">${esc(t.name)}</div>
-          <div style="font-size:10px;color:var(--text3)">${esc(t.archetype)}</div>
-        </div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
-        ${[['Phys',t.physical,'var(--fire)'],['Ment',t.mental,'var(--ice)'],['Soc',t.social,'#a855f7'],['End',t.endurance,'var(--win)']].map(([l,v,c])=>`<div style="font-size:9px;color:var(--text3)">${l} <span style="font-weight:700;color:${c}">${v}</span></div>`).join('')}
-      </div>
-    </div>`).join('')}
-    </div>`;
-    container.appendChild(section);
-  });
-}
 
 // ===== MODALS =====
 function openModal(id){ document.getElementById(id)?.classList.add('active'); if(typeof sfxOpen==='function')sfxOpen(); }

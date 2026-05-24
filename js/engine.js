@@ -211,10 +211,23 @@ function buildCampInteractions(alive){
 // ===== APPLY GAMEMAKER CHOICE =====
 function applyGamemakerChoice(eventId){
   const day=G.currentDayData;
-  if(!day||!day._eventOptions) return;
+  if(!day||day._resolved) return;
+  if(typeof sfxWin==='function') sfxWin();
+
+  if(eventId==='no_action'){
+    // Passive day — arena background events, low death chance
+    const noActionEvent={
+      id:'no_action', name:'The Arena Breathes', type:'survival',
+      stat:'endurance', deadly:0.25, minAlive:2,
+      desc:'No Gamemaker intervention. Tributes deal with hunger, cold, and each other. The odds of death are low but not zero.',
+    };
+    day._chosenEvent=noActionEvent;
+    resolveChosenEvent(noActionEvent);
+    return;
+  }
+
   const chosen=day._eventOptions.find(e=>e.id===eventId);
   if(!chosen) return;
-  if(typeof sfxWin==='function') sfxWin();
   day._chosenEvent=chosen;
   resolveChosenEvent(chosen);
 }
