@@ -15,7 +15,12 @@ function updateGameSidebar(){
   const el=id=>document.getElementById(id);
   if(el('gs-day-num'))   el('gs-day-num').textContent=G.day;
   if(el('gs-alive-count'))  el('gs-alive-count').textContent=alive.length+' alive';
-  if(el('gs-fallen-count')) el('gs-fallen-count').textContent=fallen.length+' fallen';
+  // Only show accurate fallen count after events are revealed (stage 1+)
+  const deathsVisible = G.stageIndex>=1 || G.stageIndex===99;
+  const pendingDeaths = G.currentDayData?.deaths?.length||0;
+  const displayFallen = deathsVisible ? fallen.length : fallen.length - pendingDeaths;
+  if(el('gs-fallen-count')) el('gs-fallen-count').textContent=
+    (deathsVisible?fallen.length:Math.max(0,fallen.length-pendingDeaths))+' fallen'+(deathsVisible?'':' (pending)');
   const pct=Math.round(fallen.length/G.cast.length*100);
   if(el('gs-progress-bar')) el('gs-progress-bar').style.width=pct+'%';
   if(el('gs-progress-txt')) el('gs-progress-txt').textContent=`${fallen.length}/${G.cast.length} fallen`;
@@ -147,8 +152,8 @@ function buildGamemakerChooser(day){
 
   let html=`<div class="gamemaker-panel">
     <div class="gm-header">
-      <div class="gm-badge">⚡ GAMEMAKER CONTROL</div>
-      <div class="gm-sub">You are the Head Gamemaker. Choose today's arena event — or intervene directly.</div>
+      <div class="gm-badge">${day.day===1?'⚔️ THE CORNUCOPIA AWAITS':'⚡ GAMEMAKER CONTROL'}</div>
+      <div class="gm-sub">${day.day===1?'The tributes are on their pedestals. The countdown has begun. You control when this starts.':'You are the Head Gamemaker. Choose today\'s arena event — or intervene directly.'}</div>
     </div>
     <div class="gm-options">`;
 
@@ -235,7 +240,7 @@ function buildArenaEventsSection(day){
   const typeColors={combat:'rgba(232,69,10,0.12)',survival:'rgba(56,189,248,0.08)',hazard:'rgba(168,85,247,0.10)',feast:'rgba(251,191,36,0.10)',sponsor:'rgba(74,222,128,0.08)'};
   const typeIcons={combat:'⚔️',survival:'🌿',hazard:'💀',feast:'🎒',sponsor:'🪙'};
 
-  day.events.forEach(({event,deaths,killers})=>{
+  day.events.forEach(({event,deaths,killers,rolls})=>{
     html+=`<div class="event-card anim-in" style="background:${typeColors[event.type]||'rgba(255,255,255,0.04)'}">
       <div class="event-card-type">${typeIcons[event.type]||'🏹'} ${esc(event.type.toUpperCase())}</div>
       <div class="event-card-title">${esc(event.name)}</div>
@@ -338,8 +343,8 @@ function buildStageNav(day, idx){
     html+=`<button class="btn btn-fire" onclick="renderStage(2)">📊 Day Summary →</button>`;
     html+=`<button class="btn btn-outline btn-sm" onclick="showTributeStatus()">👥 Tributes</button>`;
   } else if(idx===2){
-    if(alive.length<=1){
-      html+=`<button class="btn btn-fire" onclick="declareVictor(getActive()[0])">🏆 Declare Victor →</button>`;
+    if(alive.length<=1||day._victorPending){
+      html+=`<button class="btn btn-fire" onclick="declareVictor(getActive()[0]||G.currentDayData?._victorPending)">🏆 Declare Victor →</button>`;
     } else {
       html+=`<button class="btn btn-fire" onclick="nextDay()">▶ Day ${(day.day||G.day)+1} →</button>`;
     }

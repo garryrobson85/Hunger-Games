@@ -1,52 +1,89 @@
 // Hunger Games Simulator — engine.js
-// Arena day resolution, deaths, sponsor gifts, alliance logic, Gamemaker mode
+// D&D-style dice resolution, arena events, Gamemaker mode
 
-// ===== SURVIVAL SCORE =====
-function survivalScore(tribute, eventStat, isProtected=false){
-  const base=tribute[eventStat]||50;
-  const sponsorBonus=G.sponsorHolders.includes(tribute.id)?20:0;
-  const allianceBonus=tribute.allianceIds.length>0?8:0;
-  const protectedBonus=isProtected?14:0;
-  const gmProtect=G._gmProtectedId===tribute.id?999:0; // Gamemaker protection = near-invincible this day
-  const jitter=rng(-8,8);
-  return Math.max(1,base+allyBonus(tribute)+sponsorBonus+allianceBonus+protectedBonus+gmProtect+jitter);
-}
-function allyBonus(t){
-  const allies=getTributeAllies(t).map(id=>getActive().find(a=>a.id===id)).filter(Boolean);
-  return allies.some(a=>['The Career','The Brute'].includes(a.archetype)&&a.physical>70)?12:0;
+// ===== D&D DICE SYSTEM =====
+// Roll a d20 + stat modifier vs Difficulty Class (DC)
+// Roll >= DC = survive. Roll < DC = in danger. Nat 1 = critical fail. Nat 20 = critical success.
+
+function rollD20(){ return rng(1,20); }
+function statMod(stat){ return Math.round((stat-50)/6); } // roughly -8 to +8
+
+const ARCH_BONUS={
+  'The Career':    {combat:4, survival:1, hazard:1, feast:3},
+  'The Brute':     {combat:3, survival:0, hazard:0, feast:2},
+  'The Hunter':    {combat:2, survival:3, hazard:2, feast:1},
+  'The Survivor':  {combat:0, survival:4, hazard:2, feast:0},
+  'The Runner':    {combat:-1,survival:3, hazard:2, feast:-1},
+  'The Strategist':{combat:0, survival:1, hazard:3, feast:1},
+  'The Healer':    {combat:-2,survival:2, hazard:2, feast:0},
+  'The Romantic':  {combat:-1,survival:1, hazard:0, feast:0},
+  'The Underdog':  {combat:-1,survival:0, hazard:0, feast:-1},
+  'The Tribute':   {combat:-3,survival:-2,hazard:-2,feast:-2},
+};
+
+function tributeDeathCheck(tribute, event, alive){
+  const roll=rollD20();
+  const mod=statMod(tribute[event.stat]||50);
+
+  // Alliance protection: +3 if sheltered by a Career/Brute
+  const allies=getTributeAllies(tribute).map(id=>alive.find(a=>a.id===id)).filter(Boolean);
+  const allyBonus=allies.some(a=>['The Career','The Brute'].includes(a.archetype)&&a.physical>68)?3:0;
+
+  // Sponsor gift: +4
+  const sponsorBonus=G.sponsorHolders.includes(tribute.id)?4:0;
+
+  // Gamemaker protection: auto-survive
+  if(G._gmProtectedId===tribute.id) return{roll,mod,total:20,dc:0,survived:true,critical:'protected'};
+
+  // Archetype bonus for this event type
+  const archMap=ARCH_BONUS[tribute.archetype]||{};
+  const archBonus=archMap[event.type]||0;
+
+  const total=roll+mod+allyBonus+sponsorBonus+archBonus;
+
+  // DC: base 10, scaled by event deadliness (deadly 0.4 = DC11, deadly 0.9 = DC15)
+  const dc=Math.round(9+event.deadly*7);
+
+  // Nat 20 = always survive. Nat 1 = always in danger (must beat DC+5)
+  const crit_success=roll===20;
+  const crit_fail=roll===1;
+  const survived=crit_success||((!crit_fail)&&total>=dc);
+
+  return{roll,mod,total,dc,survived,
+    critical:crit_success?'success':crit_fail?'fail':null,
+    breakdown:`d20(${roll}) ${mod>=0?'+':''}${mod} arch(${archBonus>=0?'+':''}${archBonus})${allyBonus?` ally(+${allyBonus})`:''}${sponsorBonus?` sponsor(+${sponsorBonus})`:''} = ${total} vs DC${dc}`};
 }
 
-function killScore(killer,target){
-  const physAdv=killer.physical-target.physical;
-  const bonus=['The Career','The Brute','The Hunter'].includes(killer.archetype)?15:0;
-  return Math.max(0,50+physAdv+bonus+rng(-10,10));
+// ===== KILL ATTRIBUTION =====
+// Weighted random — high physical + archetype favoured but not guaranteed
+function assignKiller(victim, notDying, killers){
+  const pool=notDying.filter(t=>!killers[victim.id]); // don't double-assign
+  if(!pool.length) return null;
+  const weighted=pool.map(t=>{
+    let w=t.physical;
+    if(['The Career','The Brute'].includes(t.archetype)) w+=20;
+    if(t.archetype==='The Hunter') w+=12;
+    // Allies rarely kill allies
+    const alliedWithVictim=getTributeAllies(victim).includes(t.id);
+    if(alliedWithVictim) w=Math.max(1,w-35);
+    return{t,w:Math.max(1,w)};
+  });
+  const total=weighted.reduce((s,x)=>s+x.w,0);
+  let rand=seededRandom()*total;
+  for(const{t,w}of weighted){ rand-=w; if(rand<=0){return t;} }
+  return weighted[weighted.length-1].t;
 }
 
-// ===== RESOLVE BLOODBATH DEATHS =====
+// ===== DEATHS & BLOODBATH =====
 function getBloodbathDeaths(){
   const s=G.settings.bloodbathDeaths;
-  if(s==='random') return rng(4,10);
+  if(s==='random') return rng(3,8);
   return parseInt(s)||6;
 }
-
-// ===== RESOLVE MAX DEATHS =====
 function getMaxDeaths(){
   const s=G.settings.maxDeaths;
   if(s==='random') return rng(1,4);
   return parseInt(s)||3;
-}
-
-// ===== SPONSOR GIFT =====
-function maybeGiveSponsorGift(alive){
-  if(!G.settings.sponsorGifts) return null;
-  if(seededRandom()>0.35) return null;
-  const eligible=alive.filter(t=>!G.sponsorHolders.includes(t.id));
-  if(!eligible.length) return null;
-  const recipient=[...eligible].sort((a,b)=>b.social-a.social)[0];
-  const gift=pick(SPONSOR_GIFTS);
-  G.sponsorHolders.push(recipient.id);
-  recipient[gift.stat]=Math.min(99,recipient[gift.stat]+gift.bonus);
-  return{recipient,gift};
 }
 
 // ===== RESOLVE ARENA EVENT =====
@@ -54,58 +91,63 @@ function resolveArenaEvent(event, alive, forcedTargetId=null){
   const deaths=[],killers={};
 
   if(event.id==='sponsor_race'){
-    return{deaths:[],survivors:[...alive],killers:{},sponsorGift:maybeGiveSponsorGift(alive)};
+    return{deaths:[],survivors:[...alive],killers:{},sponsorGift:maybeGiveSponsorGift(alive),rolls:[]};
   }
 
-  // Forced target from Gamemaker (release muttations on specific tribute)
+  // Forced Gamemaker muttation target
   if(forcedTargetId){
     const target=alive.find(t=>t.id===forcedTargetId);
     if(target&&target.id!==G._gmProtectedId){
       deaths.push(target);
-      const potKillers=alive.filter(k=>k.id!==target.id);
-      if(potKillers.length){
-        const killer=potKillers.sort((a,b)=>killScore(b,target)-killScore(a,target))[0];
-        killers[target.id]=killer.id;
-        killer.kills=(killer.kills||0)+1;
-      }
+      const killer=assignKiller(target,alive.filter(k=>k.id!==target.id),killers);
+      if(killer){killers[target.id]=killer.id;killer.kills=(killer.kills||0)+1;}
     }
     const survivors=alive.filter(t=>!deaths.find(d=>d.id===t.id));
-    return{deaths,survivors,killers,sponsorGift:null};
+    return{deaths,survivors,killers,sponsorGift:null,rolls:[]};
   }
 
   const maxDead=event.id==='cornucopia'
-    ? getBloodbathDeaths()
-    : rng(1,Math.min(getMaxDeaths(),Math.max(1,Math.floor(alive.length*0.35))));
+    ?getBloodbathDeaths()
+    :Math.min(getMaxDeaths(),Math.max(1,Math.floor(alive.length*0.3)));
 
-  const scored=alive.map(t=>{
-    const allies=getTributeAllies(t).map(id=>alive.find(a=>a.id===id)).filter(Boolean);
-    const isProtected=allies.some(a=>['The Career','The Brute'].includes(a.archetype)&&a.physical>70);
-    return{t,score:survivalScore(t,event.stat,isProtected)};
-  }).sort((a,b)=>a.score-b.score);
+  // Roll for every tribute
+  const rolls=[];
+  const failed=[];
+  alive.forEach(t=>{
+    const result=tributeDeathCheck(t,event,alive);
+    rolls.push({tribute:t,...result});
+    if(!result.survived) failed.push({t,result});
+  });
 
-  let killed=0;
-  for(let i=0;i<scored.length&&killed<maxDead;i++){
-    const{t,score}=scored[i];
-    if(t.id===G._gmProtectedId) continue; // Gamemaker protected this tribute
-    if(event.type==='survival'&&['The Career','The Brute'].includes(t.archetype)&&seededRandom()<0.6) continue;
-    const deathRoll=seededRandom();
-    const threshold=event.deadly*(1-(score/200));
-    if(deathRoll<threshold){
-      deaths.push(t);
-      killed++;
-      if(event.type==='combat'||event.type==='feast'){
-        const potKillers=alive.filter(k=>!deaths.find(d=>d.id===k.id));
-        if(potKillers.length){
-          const killer=potKillers.sort((a,b)=>killScore(b,t)-killScore(a,t))[0];
-          killers[t.id]=killer.id;
-          killer.kills=(killer.kills||0)+1;
-        }
-      }
+  // Sort failed by total (lowest = most dead) — take up to maxDead
+  failed.sort((a,b)=>a.result.total-b.result.total);
+  const toKill=failed.slice(0,maxDead);
+
+  toKill.forEach(({t})=>{
+    deaths.push(t);
+    const notDying=alive.filter(k=>!deaths.find(d=>d.id===k.id));
+    const killer=assignKiller(t,notDying,killers);
+    if(killer&&(event.type==='combat'||event.type==='feast')){
+      killers[t.id]=killer.id;
+      killer.kills=(killer.kills||0)+1;
+    }
+  });
+
+  // Death guarantee after 2 quiet days (post day 3)
+  if(G.day>3&&(G._quietDays||0)>=2&&deaths.length===0&&alive.length>2){
+    // Kill the tribute with the lowest total roll
+    const victim=rolls.filter(r=>r.tribute.id!==G._gmProtectedId)
+      .sort((a,b)=>a.total-b.total)[0];
+    if(victim){
+      deaths.push(victim.tribute);
+      const notDying=alive.filter(k=>k.id!==victim.tribute.id);
+      const killer=assignKiller(victim.tribute,notDying,killers);
+      if(killer){killers[victim.tribute.id]=killer.id;killer.kills=(killer.kills||0)+1;}
     }
   }
 
-  // Endgame betrayal
-  if(alive.length<=6&&event.type==='combat'&&seededRandom()<0.4){
+  // Endgame betrayal (small alliances, combat events)
+  if(alive.length<=5&&event.type==='combat'&&seededRandom()<0.4&&deaths.length>0){
     const als=G.alliances.filter(al=>al.members.length>=2);
     if(als.length){
       const al=pick(als);
@@ -123,142 +165,129 @@ function resolveArenaEvent(event, alive, forcedTargetId=null){
     }
   }
 
-  // Death guarantee — after day 3, if 2+ quiet days, this event MUST kill at least 1
-  if(G.day>3&&G._quietDays>=2&&killed===0&&alive.length>2){
-    const victim=scored.find(({t})=>t.id!==G._gmProtectedId);
-    if(victim){
-      deaths.push(victim.t);
-      const potKillers=alive.filter(k=>k.id!==victim.t.id);
-      if(potKillers.length){
-        const killer=potKillers.sort((a,b)=>killScore(b,victim.t)-killScore(a,victim.t))[0];
-        killers[victim.t.id]=killer.id;
-        killer.kills=(killer.kills||0)+1;
-      }
-    }
-  }
-
   const survivors=alive.filter(t=>!deaths.find(d=>d.id===t.id));
-  const sponsorGift=maybeGiveSponsorGift(survivors);
-  return{deaths,survivors,killers,sponsorGift};
+  return{deaths,survivors,killers,sponsorGift:maybeGiveSponsorGift(survivors),rolls};
 }
 
-// ===== PICK ARENA EVENT OPTIONS (for Gamemaker to choose from) =====
-function pickEventOptions(alive, day){
+// ===== SPONSOR GIFT =====
+function maybeGiveSponsorGift(alive){
+  if(!G.settings.sponsorGifts) return null;
+  if(seededRandom()>0.3) return null;
+  const eligible=alive.filter(t=>!G.sponsorHolders.includes(t.id));
+  if(!eligible.length) return null;
+  const recipient=[...eligible].sort((a,b)=>b.social-a.social)[0];
+  const gift=pick(SPONSOR_GIFTS);
+  G.sponsorHolders.push(recipient.id);
+  recipient[gift.stat]=Math.min(99,recipient[gift.stat]+gift.bonus);
+  return{recipient,gift};
+}
+
+// ===== PICK EVENT OPTIONS =====
+function pickEventOptions(alive,day){
   if(day===1) return[{...CORNUCOPIA_EVENT}];
   const pool=ARENA_EVENTS.filter(e=>e.id!=='cornucopia'&&e.minAlive<=alive.length);
   if(!pool.length) return[pick(ARENA_EVENTS.filter(e=>e.id!=='cornucopia'))];
-  return shuffle(pool).slice(0,3); // return 3 options for Gamemaker to choose
+  return shuffle(pool).slice(0,3);
 }
 
-// ===== MORE CAMP INTERACTIONS =====
+// ===== CAMP INTERACTIONS =====
 function buildCampInteractions(alive){
-  const interactions=[];
-  if(!G.settings.confessionals||alive.length<2) return interactions;
-
-  // 2-3 interaction pairs for richer camp life
+  if(!G.settings.confessionals||alive.length<2) return [];
   const count=alive.length>=8?3:alive.length>=4?2:1;
   const shuffled=shuffle([...alive]);
   const used=new Set();
-
+  const interactions=[];
   for(let i=0;i<shuffled.length&&interactions.length<count;i++){
     const a=shuffled[i];
     if(used.has(a.id)) continue;
-    // Find a partner — prefer allies or rivals
-    const partner=shuffled.find(b=>b.id!==a.id&&!used.has(b.id));
-    if(!partner) break;
-    used.add(a.id);
-    used.add(partner.id);
-    interactions.push({a,b:partner});
+    const b=shuffled.find(x=>x.id!==a.id&&!used.has(x.id));
+    if(!b) break;
+    used.add(a.id);used.add(b.id);
+    interactions.push({a,b});
   }
   return interactions;
 }
 
 // ===== APPLY GAMEMAKER CHOICE =====
-// Called when player picks an event from the chooser
 function applyGamemakerChoice(eventId){
   const day=G.currentDayData;
   if(!day||!day._eventOptions) return;
   const chosen=day._eventOptions.find(e=>e.id===eventId);
   if(!chosen) return;
-
   if(typeof sfxWin==='function') sfxWin();
-
-  // Mark chosen
   day._chosenEvent=chosen;
-  // Resolve it now
   resolveChosenEvent(chosen);
 }
 
-// ===== TARGET A TRIBUTE (Gamemaker mutt release) =====
+// ===== TARGET TRIBUTE (MUTTATIONS) =====
 function gamemakerTargetTribute(tributeId){
   const day=G.currentDayData;
   if(!day) return;
   const alive=getActive();
   const target=alive.find(t=>t.id===tributeId);
-  if(!target){notify('Tribute not found or already fallen.');return;}
-
-  const muttEvent={...ARENA_EVENTS.find(e=>e.id==='muttations')||ARENA_EVENTS[0],id:'mutt_targeted',name:'Muttation Strike',desc:`The Gamemakers release muttations directly toward ${target.name.split(' ')[0]}.`};
+  if(!target){notify('Tribute already fallen.');return;}
+  const muttEvent={
+    id:'mutt_targeted',name:'Muttation Strike',type:'hazard',stat:'physical',deadly:0.95,
+    desc:`The Gamemakers direct muttations toward ${target.name.split(' ')[0]}.`
+  };
   const res=resolveArenaEvent(muttEvent,alive,tributeId);
-
   res.deaths.forEach(d=>{
     const t=G.cast.find(c=>c.id===d.id);
     if(t){t.eliminated=true;t.elimDay=G.day;}
   });
   updateAlliancesForDeaths(res.deaths);
-
   if(!day.events) day.events=[];
-  day.events.push({event:muttEvent,deaths:res.deaths,killers:res.killers});
-  if(!day.deaths) day.deaths=[];
-  day.deaths=[...day.deaths,...res.deaths];
-
+  day.events.push({event:muttEvent,deaths:res.deaths,killers:res.killers,rolls:res.rolls});
+  day.deaths=[...(day.deaths||[]),...res.deaths];
   closeModal('modal-gm-target');
-  notify(`🎯 Muttations sent after ${target.name.split(' ')[0]}`,'win');
-
+  notify(`🎯 Muttations released on ${target.name.split(' ')[0]}`,'win');
   const remaining=getActive();
   if(remaining.length<=1){declareVictor(remaining[0]);return;}
-  renderStage(1); // jump to arena view to show the death
+  renderStage(1);
 }
 
-// ===== PROTECT A TRIBUTE (Sponsor) =====
+// ===== PROTECT TRIBUTE =====
 function gamemakerProtectTribute(tributeId){
   G._gmProtectedId=tributeId;
   const t=G.cast.find(c=>c.id===tributeId);
   closeModal('modal-gm-protect');
-  if(t) notify(`🛡️ ${t.name.split(' ')[0]} is under Gamemaker protection today`,'win');
+  if(t) notify(`🛡️ ${t.name.split(' ')[0]} is under Capitol protection today`,'win');
+  updateGameSidebar();
 }
 
 // ===== RESOLVE CHOSEN EVENT =====
 function resolveChosenEvent(event){
   const alive=getActive();
   const day=G.currentDayData;
-
   const res=resolveArenaEvent(event,alive);
 
+  // Mark deaths — but don't reveal in sidebar yet
   res.deaths.forEach(d=>{
     const t=G.cast.find(c=>c.id===d.id);
     if(t){t.eliminated=true;t.elimDay=G.day;}
   });
   updateAlliancesForDeaths(res.deaths);
 
-  day.events=[{event,deaths:res.deaths,killers:res.killers}];
+  day.events=[{event,deaths:res.deaths,killers:res.killers,rolls:res.rolls}];
   day.deaths=res.deaths;
   day.killers=res.killers;
   if(res.sponsorGift) day.sponsorGift=res.sponsorGift;
 
-  // Track quiet days
   if(res.deaths.length===0) G._quietDays=(G._quietDays||0)+1;
   else G._quietDays=0;
-
-  // Clear Gamemaker protection after use
   G._gmProtectedId=null;
 
   saveGame();
   const remaining=getActive();
-  if(remaining.length<=1){declareVictor(remaining[0]);return;}
+  if(remaining.length<=1){
+    // Don't declare immediately — let user see events first
+    day._victorPending=remaining[0]||null;
+  }
+  // Always go to events view (stage 1) — user sees deaths here, not before
   renderStage(1);
 }
 
-// ===== MAIN DAY SETUP (Gamemaker mode — player picks event) =====
+// ===== MAIN DAY SETUP =====
 function computeAndStartDay(){
   try{
     const alive=getActive();
@@ -274,10 +303,8 @@ function computeAndStartDay(){
       day:G.day,
       _eventOptions:eventOptions,
       _chosenEvent:null,
-      events:[],
-      deaths:[],
-      killers:{},
-      sponsorGift:null,
+      _victorPending:null,
+      events:[],deaths:[],killers:{},sponsorGift:null,
       interactions,
       alive:alive.map(t=>t.id),
       _openingNarration:buildArenaOpening(G.day),
@@ -286,23 +313,18 @@ function computeAndStartDay(){
     G.currentDayData=dayData;
     G.episodeLog.push(dayData);
 
-    // Day 1 auto-resolves (Cornucopia — always happens)
-    if(G.day===1){
-      resolveChosenEvent(eventOptions[0]);
-      if(getGeminiKey()&&typeof generateAIArenaDay==='function') generateAIArenaDay(dayData);
-      return;
-    }
-
+    // Day 1: show cornucopia as the only option — user must click to trigger bloodbath
+    // No auto-resolve — player sees stage 0 first
     saveGame();
     G.stageIndex=0;
     updateGameSidebar();
-    renderStage(0); // show camp life + event chooser
+    renderStage(0);
 
     if(getGeminiKey()&&typeof generateAIArenaDay==='function') generateAIArenaDay(dayData);
 
   }catch(err){
     console.error('computeAndStartDay failed:',err);
-    notify('⚠️ Day computation failed — see console.');
+    notify('⚠️ Day failed — see console.');
   }
 }
 
@@ -321,4 +343,38 @@ function declareVictor(victor){
   G.stageIndex=99;
   updateGameSidebar();
   renderVictorScreen();
+}
+
+// ===== ALLIANCE HELPERS =====
+function maybeFormAlliances(){
+  if(!G.settings.alliances) return;
+  const active=getActive();
+  if(active.length<3) return;
+  active.forEach(t=>{
+    if(t.allianceIds.length>0||seededRandom()>0.28) return;
+    const candidates=active.filter(o=>
+      o.id!==t.id&&o.allianceIds.length===0&&(G.relationships[t.id]?.[o.id]||40)>=50
+    );
+    if(!candidates.length) return;
+    const partner=pick(candidates);
+    const al={id:uid(),members:[t.id,partner.id],strength:rng(50,80),day:G.day};
+    G.alliances.push(al);
+    t.allianceIds.push(al.id);
+    partner.allianceIds.push(al.id);
+    if(['The Career','The Brute'].includes(t.archetype)){
+      active.filter(o=>!o.eliminated&&o.allianceIds.length===0&&
+        o.id!==t.id&&o.id!==partner.id&&
+        ['The Career','The Brute'].includes(o.archetype)).slice(0,2)
+        .forEach(e=>{al.members.push(e.id);e.allianceIds.push(al.id);});
+    }
+  });
+}
+
+function updateAlliancesForDeaths(deaths){
+  deaths.forEach(d=>{
+    G.alliances.forEach(al=>{al.members=al.members.filter(m=>m!==d.id);});
+    G.alliances=G.alliances.filter(al=>al.members.length>=2);
+    const t=G.cast.find(c=>c.id===d.id);
+    if(t) t.allianceIds=[];
+  });
 }
