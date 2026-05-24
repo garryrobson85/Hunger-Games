@@ -1,7 +1,7 @@
 /* Hunger Games Simulator — game.css — responsive desktop + mobile */
 
 /* ── HEADER ── */
-.app-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--deep);border-bottom:1px solid var(--border);height:var(--header-h);display:flex;align-items:center;padding:0 14px;gap:10px;}
+.app-header{position:fixed;top:0;left:0;right:0;z-index:100;background:var(--deep);border-bottom:1px solid var(--border);height:var(--header-h);display:flex;align-items:center;padding:0 16px;gap:10px;}
 .logo{display:flex;align-items:center;gap:8px;min-width:0;}
 .logo-mark{width:30px;height:30px;background:linear-gradient(135deg,#D4AF37,#92400e);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
 .logo-text{font-family:'Bebas Neue',cursive;font-size:16px;letter-spacing:0.08em;line-height:1;white-space:nowrap;}

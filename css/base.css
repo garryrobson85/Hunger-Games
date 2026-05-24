@@ -10,7 +10,7 @@
   --win:#22c55e; --elim:#dc2626;
   --ice:#D4AF37; --ice2:#92400e;
   --radius:10px; --radius-lg:14px;
-  --header-h:57px;
+  --header-h:70px;
 }
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
