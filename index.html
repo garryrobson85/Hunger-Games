@@ -139,11 +139,23 @@
         <div class="form-row">
           <div class="form-group">
             <label class="form-label">Bloodbath Deaths (Day 1)</label>
-            <input type="number" class="form-input" id="s-bloodbath" value="6" min="2" max="12">
+            <select class="form-select" id="s-bloodbath">
+              <option value="4">4 deaths</option>
+              <option value="6" selected>6 deaths</option>
+              <option value="8">8 deaths</option>
+              <option value="10">10 deaths</option>
+              <option value="random">🎲 Random (4–10)</option>
+            </select>
           </div>
           <div class="form-group">
             <label class="form-label">Max Deaths per Day</label>
-            <input type="number" class="form-input" id="s-max-deaths" value="3" min="1" max="6">
+            <select class="form-select" id="s-max-deaths">
+              <option value="1">1 max per day</option>
+              <option value="2">2 max per day</option>
+              <option value="3" selected>3 max per day</option>
+              <option value="4">4 max per day</option>
+              <option value="random">🎲 Random (1–4)</option>
+            </select>
           </div>
         </div>
         <div class="form-group">
@@ -250,6 +262,20 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="modal-gm-target">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" style="color:var(--elim)">🎯 Release Muttations</div>
+    <div id="modal-gm-target-content"></div>
+    <div class="modal-btns"><button class="btn btn-outline" data-action="closeModal" data-modal="modal-gm-target">Cancel</button></div>
+  </div>
+</div>
+<div class="modal-backdrop" id="modal-gm-protect">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-title" style="color:var(--win)">🛡️ Grant Capitol Protection</div>
+    <div id="modal-gm-protect-content"></div>
+    <div class="modal-btns"><button class="btn btn-outline" data-action="closeModal" data-modal="modal-gm-protect">Cancel</button></div>
+  </div>
+</div>
 <div id="notification" class="notification"></div>
 
 <script src="js/data.js?v=1"></script>
