@@ -71,3 +71,19 @@ document.addEventListener('DOMContentLoaded',()=>{
   if(typeof updateContinueButton==='function') updateContinueButton();
   if(typeof _showOnlyScreen==='function') _showOnlyScreen('screen-home');
 });
+
+// ── MOBILE SIDEBAR ──
+function toggleMobileSidebar(){
+  const sidebar=document.getElementById('gs-tribute-list')?.closest('.game-sidebar');
+  if(!sidebar) return;
+  const open=sidebar.style.display==='block';
+  sidebar.style.cssText=open?'display:none':'display:block;position:fixed;top:var(--header-h);right:0;bottom:60px;width:240px;z-index:90;overflow-y:auto;padding:12px;background:var(--deep);border-left:1px solid var(--border);box-shadow:-4px 0 20px rgba(0,0,0,0.5)';
+}
+
+// Show/hide mobile FAB based on screen
+function updateMobileFAB(){
+  const btn=document.getElementById('mobile-sidebar-btn');
+  if(!btn) return;
+  btn.style.display=window.innerWidth<=640&&document.getElementById('screen-game')?.classList.contains('active')?'flex':'none';
+}
+window.addEventListener('resize',updateMobileFAB);
