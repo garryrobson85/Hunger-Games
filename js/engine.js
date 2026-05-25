@@ -192,7 +192,7 @@ function pickEventOptions(alive,day){
 
 // ===== CAMP INTERACTIONS =====
 function buildCampInteractions(alive){
-  if(!G.settings.confessionals||alive.length<2) return [];
+  if((!G.settings.confessionals&&!G.settings.tributeFocus)||alive.length<2) return [];
   const count=alive.length>=8?3:alive.length>=4?2:1;
   const shuffled=shuffle([...alive]);
   const used=new Set();
@@ -291,6 +291,8 @@ function resolveChosenEvent(event){
   if(res.deaths.length===0) G._quietDays=(G._quietDays||0)+1;
   else G._quietDays=0;
   G._gmProtectedId=null;
+  // Update psychological state after resolution
+  updatePsychAfterDay(res.deaths, getActive());
 
   saveGame();
   const remaining=getActive();

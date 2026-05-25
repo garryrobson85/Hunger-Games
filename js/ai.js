@@ -106,7 +106,7 @@ function buildArenaDayPrompt(day){
     .map(t=>'id:'+t.id+' = '+t.name.split(' ')[0]).join(' | ')||'none';
 
   const prompt=
-    'You write for a Hunger Games simulator. Capitol announcer voice: theatrical, complicit, slightly sinister.\n'+
+    'You write cinematic survival narrative for a Hunger Games simulator. Voice: dark, atmospheric, oppressive. NOT a reality TV show. Tributes are not performers. They are being watched against their will.\n'+
     'Season: "'+( G.settings.name||'The Hunger Games')+'" — Arena: '+arenaName+' — Day '+day.day+'\n'+
     alive.length+' tributes alive. '+deaths.length+' cannon shot'+(deaths.length!==1?'s':'')+' today.\n\n'+
     '== FACTS (use ONLY these) ==\n'+
@@ -130,9 +130,13 @@ function buildArenaDayPrompt(day){
     'Write ONLY valid JSON (no markdown, no backticks):\n'+
     '{\n'+
     '  "openingNarration": "2-3 Capitol sentences opening Day '+day.day+'",\n'+
-    '  "interactions": [\n'+
+    '  "tributeFocus": [\n'+
     (day.interactions&&day.interactions.length
-      ?'    '+day.interactions.map(i=>'{"playerIds":["'+i.a.id+'","'+i.b.id+'"],"text":"1-2 sentences"}').join(',\n    ')
+      ?'    '+day.interactions.map(i=>{
+        const pA=i.a.psych;
+        const psychCtx=pA?'(fear:'+(pA.fear||0)+' exhaustion:'+(pA.exhaustion||0)+' hope:'+(pA.hope||0)+')':'';
+        return '{"playerIds":["'+i.a.id+'","'+i.b.id+'"],"text":"2-3 sentence observation. No camera. Internal or environmental. '+i.a.name.split(' ')[0]+' '+psychCtx+'"}';
+      }).join(',\n    ')
       :'')+
     '\n  ],\n'+
     '  "deaths": [\n'+
@@ -169,8 +173,9 @@ async function generateAIArenaDay(day){
 
     if(parsed.openingNarration) day._aiOpeningNarration=parsed.openingNarration;
 
-    if(parsed.interactions){
-      parsed.interactions.forEach(i=>{
+    const focusData=parsed.tributeFocus||parsed.interactions;
+    if(focusData){
+      focusData.forEach(i=>{
         const match=day.interactions?.find(d=>d.a.id===i.playerIds?.[0]&&d.b.id===i.playerIds?.[1]);
         if(match) match._aiText=i.text;
       });

@@ -225,6 +225,65 @@ function buildArenaEventIntro(event, day){
   }
 }
 
+
+// ===== ATMOSPHERIC TEXT =====
+// Shown between major sections — environmental storytelling, no reality-TV framing
+const ATMOSPHERIC_DAWN = [
+  'The arena goes cold before sunrise. Somewhere in the dark, something moves.',
+  'Dawn comes slow. Mist sits low over the ground, and nothing stirs except the silence.',
+  'First light. The Cornucopia glints in the distance. Someone has been there overnight.',
+  'The temperature dropped during the night. One tribute is already shivering.',
+  'Morning. The canon count stays the same. For now.',
+  'Fog rolls in before sunrise. Visibility drops to nothing. The arena uses this.',
+];
+
+const ATMOSPHERIC_PRESSURE = [
+  'The water source runs lower than yesterday. Someone has been drinking from it.',
+  'Smoke from the east. A fire that nobody set deliberately.',
+  'A high-pitched sound. Not wind. Not an animal. The Gamemakers testing something.',
+  'Blood on a rock. Old enough to be dry. Not old enough to be forgotten.',
+  'The birds stopped singing an hour ago. In the arena, that means something.',
+  'Movement in the canopy above. Too deliberate to be wind. Too quiet to be careless.',
+  'The temperature is rising. The Gamemakers controlling weather is never comfortable.',
+  'Supply abandoned mid-path. Whoever left it ran. That is the detail that matters.',
+];
+
+const ATMOSPHERIC_NIGHT = [
+  'Night. The anthem plays and the sky shows no new faces. Someone feels relief. Someone feels dread.',
+  'The arena at night is its own kind of violence. The dark hides nothing — it just rearranges it.',
+  'Cold descends fast. Tributes who shelter alone are gambling. Tributes who shelter together are gambling differently.',
+  'Distant cannon. The echo arrives before the sound. Nobody moves for three full minutes.',
+  'The Capitol seal burns in the sky above the dead. Somewhere in a viewing room, audiences applaud.',
+  'Nightfall. The arena breathes. Every tribute counts the hours until something happens.',
+];
+
+const ATMOSPHERIC_GAMEMAKER = [
+  'The Gamemakers have been watching the tracking maps. The gaps are too comfortable.',
+  'In the control room, a senior Gamemaker marks a zone for intervention.',
+  'Ratings have dipped. That is always dangerous information for the tributes to not have.',
+  'The arena can be adjusted. It always has been. Tonight, something will be adjusted.',
+];
+
+function getAtmosphericText(type){
+  const pools = {dawn:ATMOSPHERIC_DAWN, pressure:ATMOSPHERIC_PRESSURE, night:ATMOSPHERIC_NIGHT, gamemaker:ATMOSPHERIC_GAMEMAKER};
+  return pick(pools[type]||ATMOSPHERIC_PRESSURE);
+}
+
+// ===== PSYCHOLOGICAL DESCRIPTIONS =====
+function describePsychState(t){
+  const p=t.psych;
+  if(!p) return '';
+  if(p.fear>80) return 'operating on raw terror';
+  if(p.exhaustion>75) return 'running on nothing';
+  if(p.hunger>70) return 'weakened by hunger';
+  if(p.trauma>65) return 'carrying something heavy';
+  if(p.hope<15) return 'past the point of caring';
+  if(p.desperation>80) return 'past careful decisions';
+  if(p.hope>80&&p.fear<30) return 'clear-headed, focused';
+  if(p.fear<20&&p.kills>0) return 'disturbingly calm';
+  return '';
+}
+
 // ===== TRIBUTE BUILDER =====
 let _namePool = {m:[...FIRST_NAMES_M], f:[...FIRST_NAMES_F], last:[...LAST_NAMES]};
 function resetNamePool(){ _namePool={m:[...FIRST_NAMES_M],f:[...FIRST_NAMES_F],last:[...LAST_NAMES]}; }

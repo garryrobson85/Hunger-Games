@@ -114,46 +114,67 @@ function buildOpeningNarrationCard(day){
   </div>`;
 }
 
-// ===== CAMP LIFE (richer interactions) =====
+// ===== TRIBUTE FOCUS — cinematic, not reality TV =====
 function buildCampLifeSection(day){
-  if(!day.interactions?.length) return '';
-  let html=`<div class="stage-block">
-    <div class="stage-label">🏕️ In the Arena — Before the Event</div>`;
+  const alive=getActive();
+  let html='';
 
-  day.interactions.forEach(i=>{
-    const text=i._aiText||buildTributeInteraction(i.a,i.b);
-    const rel=G.relationships[i.a.id]?.[i.b.id]||40;
-    const allied=i.a.allianceIds.some(id=>i.b.allianceIds.includes(id));
-    const relLabel=allied?'🤝 Allies':rel>=65?'👍 Friendly':rel<30?'⚠️ Rivals':'😐 Wary';
-    html+=`<div class="interaction-card">
-      <div class="iheader">
-        ${getTributePortrait(i.a,36)}<div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:700">${esc(i.a.name.split(' ')[0])}</div><div style="font-size:9px;color:var(--text3)">${esc(i.a.districtName)}</div></div>
-        <span style="font-size:10px;color:var(--text3);padding:0 6px">${relLabel}</span>
-        <div style="flex:1;min-width:0;text-align:right"><div style="font-size:13px;font-weight:700">${esc(i.b.name.split(' ')[0])}</div><div style="font-size:9px;color:var(--text3)">${esc(i.b.districtName)}</div></div>
-        ${getTributePortrait(i.b,36)}
-      </div>
-      <div class="ibody">${esc(text)}</div>
+  // Atmospheric opening
+  const atmType=['dawn','pressure'][rng(0,1)];
+  const atmText=typeof getAtmosphericText==='function'?getAtmosphericText(atmType):'';
+  if(atmText){
+    html+=`<div class="broadcast-section">
+      <div class="broadcast-kicker">THE ARENA — DAY ${day.day}</div>
+      <div class="broadcast-atmosphere">${esc(atmText)}</div>
     </div>`;
-  });
-
-  // Active alliances snapshot
-  const alliances=G.alliances.filter(al=>al.members.length>=2);
-  if(alliances.length){
-    html+=`<div style="margin-top:12px;padding:10px 12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px">
-      <div style="font-size:9px;font-family:'Space Mono',monospace;color:var(--text3);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:8px">Active Alliances</div>
-      <div style="display:flex;flex-direction:column;gap:6px">`;
-    alliances.forEach(al=>{
-      const members=al.members.map(id=>G.cast.find(t=>t.id===id)).filter(Boolean);
-      const str=al.strength||50;
-      html+=`<div style="display:flex;align-items:center;gap:8px">
-        <span style="font-size:10px;color:${str>=70?'var(--win)':str>=40?'var(--fire2)':'var(--elim)'}">●</span>
-        ${members.map(m=>`<div style="display:flex;align-items:center;gap:4px">${getTributePortrait(m,22)}<span style="font-size:11px">${esc(m.name.split(' ')[0])}</span></div>`).join('<span style="font-size:10px;color:var(--text3)"> + </span>')}
-      </div>`;
-    });
-    html+=`</div></div>`;
   }
 
-  html+=`</div>`;
+  // Tribute focus sections (replacing confessional framing)
+  if(day.interactions?.length){
+    day.interactions.forEach(i=>{
+      const text=i._aiText||buildTributeInteraction(i.a,i.b);
+      const rel=G.relationships[i.a.id]?.[i.b.id]||40;
+      const allied=i.a.allianceIds.some(id=>i.b.allianceIds.includes(id));
+      const psychA=i.a.psych;
+      const repA=i.a.reputation;
+      const psychDesc=typeof describePsychState==='function'?describePsychState(i.a):'';
+
+      html+=`<div class="tribute-focus-card">
+        <div class="tf-header">
+          ${getTributePortrait(i.a,42)}
+          <div class="tf-identity">
+            <div class="tf-name">${esc(i.a.name)}</div>
+            <div class="tf-district">${esc(i.a.districtName)}</div>
+            ${repA?`<div class="tf-reputation">${esc(repA)}</div>`:''}
+            ${psychDesc?`<div class="tf-state">${esc(psychDesc)}</div>`:''}
+          </div>
+          ${allied?`<div class="tf-allied">with ${esc(i.b.name.split(' ')[0])}</div>`:''}
+        </div>
+        <div class="tf-text">${esc(text)}</div>
+        ${psychA?`<div class="tf-psych-bar">
+          <div class="tf-psych-fill" style="width:${100-Math.min(100,psychA.fear||0)}%;background:${psychA.fear>60?'var(--elim)':psychA.hope>60?'var(--win)':'var(--fire)'}"></div>
+        </div>`:''}
+      </div>`;
+    });
+  }
+
+  // Alliance state — shown as intel, not game-show scoreboard
+  const alliances=G.alliances.filter(al=>al.members.length>=2);
+  if(alliances.length&&alive.length<=12){
+    html+=`<div class="intel-block">
+      <div class="intel-label">KNOWN ALLIANCES</div>
+      ${alliances.map(al=>{
+        const members=al.members.map(id=>G.cast.find(t=>t.id===id)).filter(Boolean);
+        const str=al.strength||50;
+        const fragile=str<40;
+        return `<div class="intel-row ${fragile?'intel-fragile':''}">
+          ${members.map(m=>`<span class="intel-tribute" style="border-color:${esc(m.color)}">${esc(m.name.split(' ')[0])}</span>`).join('<span class="intel-sep">—</span>')}
+          ${fragile?'<span class="intel-status">fracturing</span>':''}
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+
   return html;
 }
 
@@ -336,7 +357,7 @@ function buildDaySummary(day){
     html+=`<div class="summary-section"><div style="font-size:13px;color:var(--text3);font-style:italic;padding:8px 0">No cannon shots today. The arena grows impatient.</div></div>`;
   }
 
-  html+=`<div class="summary-section"><div class="summary-label">⚡ Alive (${alive.length})</div><div class="alive-grid">`;
+  html+=`<div class="summary-section"><div class="broadcast-kicker" style="margin-bottom:10px">REMAINING — ${alive.length})</div><div class="alive-grid">`;
   DISTRICTS.forEach((d,di)=>{
     const da=alive.filter(t=>t.district===di);
     da.forEach(t=>{
@@ -354,7 +375,7 @@ function buildDaySummary(day){
 
   const topKillers=alive.filter(t=>t.kills>0).sort((a,b)=>b.kills-a.kills).slice(0,4);
   if(topKillers.length){
-    html+=`<div class="summary-section"><div class="summary-label">⚔️ Kill Leaderboard</div>`;
+    html+=`<div class="summary-section"><div class="broadcast-kicker" style="margin-bottom:10px">CAPITOL WATCH LIST</div>`;
     topKillers.forEach((t,i)=>{
       html+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
         <span style="font-size:12px;color:var(--text3);width:16px">${i+1}</span>
